@@ -35,6 +35,10 @@ from misaka import Markdown, HtmlRenderer, HtmlTocRenderer, \
 #     HTML_SMARTYPANTS
 from jinja2 import Template
 
+import mistune
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name
+from pygments.formatters import HtmlFormatter
 
 # A basic default template to use until the vimwiki template settings are
 # fully integrated.
@@ -42,21 +46,23 @@ template = Template("""
             <!DOCTYPE html>
             <html>
             <head>
-                {% if cssfile %}
-                    <link href="{{ cssfile }}" rel="stylesheet">
-                {% endif %}
                 {% if title %}
                     <title>{{ title }}</title>
+                {% endif %}
+                {% if cssfile %}
+                    <link href="{{ cssfile }}" rel="stylesheet">
                 {% endif %}
             </head>
             <body>
                 {% if title %}
                     <p id="title">{{ title }}</p>
                 {% endif %}
+
                 {% if toc_content %}
                     <p class="toc">Table of Contents</p>
                     {{ toc_content }}
                 {% endif %}
+
                 {{ main_content }}
             </body>
             </html>"""
@@ -180,8 +186,30 @@ if __name__ == '__main__':
         class VimwikiTocRenderer(HtmlTocRenderer, LinkPreprocessor):
             pass
 
+        # class VimwikiHtmlRenderer(HtmlRenderer, LinkPreprocessor):
+        #     pass
+
+        class CodeHtmlFormatter(HtmlFormatter):
+            def wrap(self, source, outfile):
+                return self._wrap_code(source)
+
+            def _wrap_code(self, source):
+                yield 0, '<div class="codehilite"><pre><code>'
+                for i, t in source:
+                    # if i == 1:
+                        # it's a line of formatted code
+                        # t += '<br>'
+                    yield i, t
+                yield 0, '</code></pre></div>'
+
         class VimwikiHtmlRenderer(HtmlRenderer, LinkPreprocessor):
-            pass
+             def block_code(self, text, lang):
+                 if not lang:
+                     return u'\n<pre><code>%s</code></pre>\n' % \
+                         mistune.escape(text.strip())
+                 lexer = get_lexer_by_name(lang, stripall=True)
+                 formatter = CodeHtmlFormatter()
+                 return highlight(text, lexer, formatter)
 
         renderer = VimwikiHtmlRenderer(HTML_TOC)
         to_html = Markdown(renderer, extensions=EXT_NO_INTRA_EMPHASIS |

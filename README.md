@@ -26,6 +26,11 @@ Python 3 -- for more robust unicode handling.
 
 [Jinja2](http://jinja.pocoo.org/) -- a python templating engine.
 
+[mistune](https://github.com/lepture/mistune) -- The fastest markdown parser in
+                                                 pure Python with renderer feature,
+                                                 inspired by marked and misaka.
+
+[pygments](https://github.com/trevorturk/pygments) -- code highlighting via Google App Engine
 
 Setup
 ==========
