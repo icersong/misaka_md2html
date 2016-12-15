@@ -18,13 +18,20 @@ Required Vimwiki Settings in vimrc:
 4.  css_name should point to the css file you want to use.  This has a default value of style.css so copying the provided style.css from autoload/vimwiki/ to your path_html should be sufficient to get started.
 
 """
+#  import os
+#  if os.getenv('VIRTUAL_ENV'):
+#      activate_this = os.path.join(os.getenv('VIRTUAL_ENV'), 'bin', 'activate_this.py')
+#      #  if os.path.exists(activate_this): execfile(activate_this, dict(__file__=activate_this))
+#      if os.path.exists(activate_this):
+#          with open(activate_this) as fp:
+#              exec(fp.read(), dict(__file__=activate_this))
 
 import os.path
 import re
 import argparse
 from misaka import Markdown, HtmlRenderer, HtmlTocRenderer, \
     EXT_NO_INTRA_EMPHASIS, EXT_TABLES, EXT_FENCED_CODE, EXT_AUTOLINK, \
-    EXT_STRIKETHROUGH, EXT_SUPERSCRIPT, HTML_TOC
+    EXT_STRIKETHROUGH, EXT_SUPERSCRIPT
 # from misaka import Markdown, HtmlRenderer, HtmlTocRenderer, SmartyPants, \
 #     EXT_NO_INTRA_EMPHASIS, EXT_TABLES, EXT_FENCED_CODE, EXT_AUTOLINK, \
 #     EXT_STRIKETHROUGH, EXT_SPACE_HEADERS, \
@@ -110,7 +117,7 @@ if __name__ == '__main__':
     if os.path.exists(template_file):
         template = Template(open(template_file, 'r').read())
 
-    if ns.force or (os.path.exists(output_file_path) != True):
+    if ns.force or (os.path.exists(output_file_path) is not True):
 
         class LinkPreprocessor(object):
 
@@ -172,7 +179,9 @@ if __name__ == '__main__':
                 # each of the regular expression patterns has a named group so
                 # we can process them all the same way in a function
                 # title will be in the form %title This is the Title
+                # %title
                 title_text = '^\s*%title\s+(?P<title>.+)\s*'
+                # %template
                 template_text = '^\s*%template\s+(?P<template>.+)\s*'
                 # %toc
                 toc_text = '^\s*(?P<toc>%toc)\s*'
@@ -185,9 +194,6 @@ if __name__ == '__main__':
 
         class VimwikiTocRenderer(HtmlTocRenderer, LinkPreprocessor):
             pass
-
-        # class VimwikiHtmlRenderer(HtmlRenderer, LinkPreprocessor):
-        #     pass
 
         class CodeHtmlFormatter(HtmlFormatter):
             def wrap(self, source, outfile):
@@ -203,7 +209,11 @@ if __name__ == '__main__':
                 yield 0, '</code></pre></div>'
 
         class VimwikiHtmlRenderer(HtmlRenderer, LinkPreprocessor):
-             def block_code(self, text, lang):
+            def __call__(self, text, *args, **kwargs):
+                text = self.preprocess(text)
+                return super(VimwikiHtmlRenderer, self).__call__(text)
+
+            def block_code(self, text, lang):
                  if not lang:
                      return u'\n<pre><code>%s</code></pre>\n' % \
                          mistune.escape(text.strip())
@@ -211,11 +221,12 @@ if __name__ == '__main__':
                  formatter = CodeHtmlFormatter()
                  return highlight(text, lexer, formatter)
 
-        renderer = VimwikiHtmlRenderer(HTML_TOC)
+        renderer = VimwikiHtmlRenderer()
         to_html = Markdown(renderer, extensions=EXT_NO_INTRA_EMPHASIS |
                            EXT_TABLES | EXT_FENCED_CODE | EXT_AUTOLINK |
                            EXT_STRIKETHROUGH | EXT_SUPERSCRIPT)
-        main_content = to_html.render(input_file)
+        input_file = renderer.preprocess(input_file)
+        main_content = to_html(input_file)
         if renderer.percent_codes['no_html']:
             print(output_file_path + " not converted due to presence of "
                   "'%nohtml' in the file.")
@@ -224,7 +235,7 @@ if __name__ == '__main__':
                 toc_renderer = VimwikiTocRenderer()
                 to_toc = Markdown(toc_renderer,
                                   extensions=EXT_NO_INTRA_EMPHASIS | EXT_AUTOLINK)
-                toc_content = to_toc.render(input_file)
+                toc_content = to_toc(input_file)
             else:
                 toc_content = None
 
